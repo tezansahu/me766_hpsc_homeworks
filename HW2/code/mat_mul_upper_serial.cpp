@@ -63,6 +63,7 @@ int main(int argc, char *argv[]){
         exit(1);
     }
 
+    // Declared as static so that they do not deside in stack & cause segmentation fault
     static float A[10000][10000], B[10000][10000], C[10000][10000];
     
     // Initialize matrices A & B to random floating point values (between 0 & 1)
