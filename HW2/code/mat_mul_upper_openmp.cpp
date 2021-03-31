@@ -14,6 +14,17 @@ int N;
 int num_threads;
 int i, j, k;
 
+// Initialize matrices A & B to random floating point values (between 0 & 1)
+void init_matrices(float A[][10000], float B[][10000]) {
+    srand(0);
+    for (i = 0; i < N; i++) {
+        for (j = 0; j < N; j++) {
+            A[i][j] = rand() / (RAND_MAX * 1.0);
+            B[i][j] = rand() / (RAND_MAX * 1.0);
+        }
+    }
+}
+
 // Perform matrix multiplication
 void multiply(float A[][10000], float B[][10000], float C[][10000]) {
     // int C[N][N];
@@ -88,14 +99,7 @@ int main(int argc, char *argv[]){
     // Declared as static so that they do not deside in stack & cause segmentation fault
     static float A[10000][10000], B[10000][10000], C[10000][10000];
     
-    // Initialize matrices A & B to random floating point values (between 0 & 1)
-    srand(0);
-    for (i = 0; i < N; i++) {
-        for (j = 0; j < N; j++) {
-            A[i][j] = rand() / (RAND_MAX * 1.0);
-            B[i][j] = rand() / (RAND_MAX * 1.0);
-        }
-    }
+    init_matrices(A, B);
 
     chrono::duration<double> elapsed_seconds;
 
