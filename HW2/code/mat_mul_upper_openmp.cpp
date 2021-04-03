@@ -50,7 +50,7 @@ void convert_to_upper(float mat[][10000]) {
         for (j = i+1; j < N; j++) {
             coeff = mat[j][i] / mat[i][i];
 
-            for (k = 0; k < N; k++) {
+            for (k = i; k < N; k++) {
                 mat[j][k] -= mat[i][k] * coeff;
             }
         }
@@ -109,9 +109,9 @@ int main(int argc, char *argv[]){
     elapsed_seconds = end_mul - start_mul;
     printf("Matrix Multiplication: \t\t %.3f s\n", elapsed_seconds.count());
     
-    // display(A);
-    // display(B);
-    // display(C);
+    display(A);
+    display(B);
+    display(C);
     
     auto start_upper = chrono::system_clock::now();
     convert_to_upper(C);
@@ -122,6 +122,6 @@ int main(int argc, char *argv[]){
     elapsed_seconds = end_upper - start_mul;
     printf("Overall Time Taken: \t\t %.3f s\n", elapsed_seconds.count());
     
-    // display(C);
+    display(C);
 
 }

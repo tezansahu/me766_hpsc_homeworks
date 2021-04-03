@@ -57,23 +57,21 @@ int main(int argc, char **argv) {
         cout<<"Invalid arguments. Exitting."<<endl;
         exit(1);
     }
-
+    
     int my_pe, offset, rows;
     chrono::duration<double> elapsed_seconds;
+    chrono::time_point<chrono::high_resolution_clock> start_mul, end_mul, start_upper, end_upper;
 
     float A[N][N], B[N][N], C[N][N];
+    float coeff;
 
     MPI_Init(&argc, &argv);
 
     MPI_Comm_size(MPI_COMM_WORLD, &num_pes);
     MPI_Comm_rank(MPI_COMM_WORLD, &my_pe);
 
-    // printf("Hello from %d\n", my_pe);
-    
-
     // Let PE 0 be the master node, which initializes the matrices & later sends the matrix data to other worker nodes for multiplication
     if (my_pe == 0) {
-        // printf("Hi");
         // Initialize the matrices
         srand(0);
         for (i = 0; i < N; i++) {
@@ -85,23 +83,21 @@ int main(int argc, char **argv) {
 
         // display((float *)A);
         // display((float *)B);
-
-        offset = 0;
-        rows = N/(num_pes - 1);
+        rows = N / num_pes;
+        offset = rows;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////// Matrix Multiplication //////////////////////////////////////////////////////
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        auto start_mul = chrono::system_clock::now();
+        start_mul = chrono::system_clock::now();
 
         // Send the data for a set of rows to the corresponding workers
         for (i = 1; i < num_pes; i++) {
             // The last worker node takes care of rows that may be left out in case N is not divisible by number of workers
             if (i == num_pes - 1) {
-                rows += N % (num_pes - 1);
+                rows += N % num_pes;
             }
-
             MPI_Send(&offset, 1, MPI_INT, i, MAP, MPI_COMM_WORLD);
             MPI_Send(&rows, 1, MPI_INT, i, MAP, MPI_COMM_WORLD);
             MPI_Send(&A[offset][0], rows*N, MPI_FLOAT, i, MAP, MPI_COMM_WORLD);
@@ -110,7 +106,17 @@ int main(int argc, char **argv) {
             offset += rows;
         }
 
-        rows = N/(num_pes - 1);
+        rows = N/num_pes;
+
+        // Do the multiplication for the rows designated for process 0
+        for (i = 0; i < rows; i++) {
+            for (j = 0; j < N; j++) {
+                C[i][j] = 0;
+                for (k = 0; k < N; k++) {
+                    C[i][j] += A[i][k] * B[k][j];
+                }
+            }
+        }
 
         // Receive the results from workers
         for (i = 1; i < num_pes; i++) {
@@ -123,8 +129,7 @@ int main(int argc, char **argv) {
             MPI_Recv(&rows, 1, MPI_INT, i, GATHER, MPI_COMM_WORLD, &status);
             MPI_Recv(&C[offset][0], rows*N, MPI_FLOAT, i, GATHER, MPI_COMM_WORLD, &status);
         }
-
-        auto end_mul = chrono::system_clock::now();
+        end_mul = chrono::system_clock::now();
         elapsed_seconds = end_mul - start_mul;
         printf("Matrix Multiplication: \t\t %.3f s\n", elapsed_seconds.count());
 
@@ -150,6 +155,70 @@ int main(int argc, char **argv) {
         MPI_Send(&offset, 1, MPI_INT, 0, GATHER, MPI_COMM_WORLD);
         MPI_Send(&rows, 1, MPI_INT, 0, GATHER, MPI_COMM_WORLD);
         MPI_Send(&C, rows*N, MPI_FLOAT, 0, GATHER, MPI_COMM_WORLD);
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////// Conversion to Upper Triangular /////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    if (my_pe == 0) {
+        start_upper = chrono::system_clock::now();
+    }
+    
+    for (i=0; i < N-1; i++) {
+        MPI_Bcast(&C[i][0], N, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        if (my_pe == 0) {
+            
+            // For each iteration, send the corresponding elements to respective processes for computation
+            for (int p = 1; p < num_pes; p += 1) {
+                for (j = i + 1 + p; j < N; j += num_pes){
+                    MPI_Send(&C[j][0], N, MPI_FLOAT, p, MAP, MPI_COMM_WORLD);
+                }
+            }
+
+            // Implement Gaussian Elimination at process 0
+            for (j = i+1; j < N; j += num_pes) {
+                coeff = C[j][i] / C[i][i];
+
+                for (k = i; k < N; k++) {
+                    C[j][k] -= C[i][k] * coeff;
+                }
+            }
+
+            // Collect all values computed by other processes for the current iteration
+            for (int p = 1; p < num_pes; p += 1) {
+
+                for (j = i + 1 + p; j < N; j += num_pes){
+                    MPI_Recv(&C[j][0], N, MPI_FLOAT, p, GATHER, MPI_COMM_WORLD, &status);
+                }
+                
+            }
+        }
+
+        // Implementation of other processes with id != 0
+        else {
+            for (j = i + 1 + my_pe; j < N; j += num_pes){
+                MPI_Recv(&C[j][0], N, MPI_FLOAT, 0, MAP, MPI_COMM_WORLD, &status);
+
+                coeff = C[j][i] / C[i][i];
+
+                for (k = i; k < N; k++) {
+                    C[j][k] -= C[i][k] * coeff;
+                }
+                MPI_Send(&C[j][0], N, MPI_FLOAT, 0, GATHER, MPI_COMM_WORLD);
+            }
+        }
+    }
+
+    if (my_pe == 0) {
+        end_upper = chrono::system_clock::now();
+        elapsed_seconds = end_upper - start_upper;
+        printf("Upper Triangular Matrix: \t %.3f s\n", elapsed_seconds.count());
+
+        elapsed_seconds = end_upper - start_mul;
+        printf("Overall Time Taken: \t\t %.3f s\n", elapsed_seconds.count());
+
+        // display((float *)C);
     }
 
     MPI_Finalize();
