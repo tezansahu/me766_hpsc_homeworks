@@ -1,3 +1,4 @@
+ulimit -s unlimited
 g++ -fopenmp mat_mul_upper_openmp.cpp
 
 { echo "OpenMP Parallelization:" ; } 1> openmp_timing.txt
@@ -21,12 +22,12 @@ done
 
 ##############################################################################################
 
-ulimit -s unlimited
 mpic++ mat_mul_upper_mpi.cpp
 
 { echo "MPI Parallelization:" ; } 1> mpi_timing.txt
 { echo "--------------------------------------"; } 1>> mpi_timing.txt
-for n in 100 500 1000 2000 5000
+# for n in 100 500 1000 2000 5000
+for n in 5000
 do
     { echo "Matrix Dimension:" $n ; } | tee -a mpi_timing.txt
     { echo "----------------------"; } 1>> mpi_timing.txt

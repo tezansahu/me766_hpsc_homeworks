@@ -46,7 +46,6 @@ void convert_to_upper(float mat[][10000]) {
     
     #pragma omp parallel for shared(mat) private(j, k, coeff)
     for (i = 0; i < N-1; i++) {
-        #pragma omp parallel for
         for (j = i+1; j < N; j++) {
             coeff = mat[j][i] / mat[i][i];
 
@@ -96,8 +95,8 @@ int main(int argc, char *argv[]){
 
     omp_set_num_threads(num_threads);
 
-    // Declared as static so that they do not deside in stack & cause segmentation fault
-    static float A[10000][10000], B[10000][10000], C[10000][10000];
+    // Declared as static so that they do not reside in stack & cause segmentation fault
+    float A[10000][10000], B[10000][10000], C[10000][10000];
     
     init_matrices(A, B);
 
@@ -109,9 +108,9 @@ int main(int argc, char *argv[]){
     elapsed_seconds = end_mul - start_mul;
     printf("Matrix Multiplication: \t\t %.3f s\n", elapsed_seconds.count());
     
-    display(A);
-    display(B);
-    display(C);
+    // display(A);
+    // display(B);
+    // display(C);
     
     auto start_upper = chrono::system_clock::now();
     convert_to_upper(C);
@@ -122,6 +121,6 @@ int main(int argc, char *argv[]){
     elapsed_seconds = end_upper - start_mul;
     printf("Overall Time Taken: \t\t %.3f s\n", elapsed_seconds.count());
     
-    display(C);
+    // display(C);
 
 }
